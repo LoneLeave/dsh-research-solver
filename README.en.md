@@ -90,14 +90,22 @@ Every file under `human/` is a pure function of state, which is why `check` can 
 
 ## Install
 
+From npm:
+
 ```
-plugin_manager action=install_bundle target=<absolute path to this directory>
+dsh plugin add dsh-research-solver
 ```
 
-Or from a published repository:
+From GitHub:
 
 ```
 dsh plugin add github:LoneLeave/dsh-research-solver
+```
+
+From a local checkout:
+
+```
+plugin_manager action=install_bundle target=<absolute path to this directory>
 ```
 
 Host-only bundle, no client code, no third-party dependencies, `node >= 22`. It registers the skill `research-solver`, which explains when to reach for the two principles and the four stages.

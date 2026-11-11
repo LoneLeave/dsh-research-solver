@@ -102,6 +102,20 @@ research/<slug>/
 
 ## 安装
 
+从 npm（推荐，一条命令，之后随 `dsh` 一起升级）：
+
+```bash
+dsh plugin add dsh-research-solver
+```
+
+从 GitHub：
+
+```bash
+dsh plugin add github:LoneLeave/dsh-research-solver
+```
+
+本机开发时直接指向目录：
+
 ```text
 plugin_manager action=install_bundle target=<本目录绝对路径>
 ```

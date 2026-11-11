@@ -2,7 +2,7 @@
   "name": "dsh-research-solver",
   "version": "0.2.0",
   "description": "Research-style problem solving for DeepSeek Harness: treat what existing tools do badly as the innovation target, search locally before the web, then walk four stages (collect → metric-based evaluation → fuse/improve → iterate) backed by a deterministic scoring engine whose totals can be recomputed by hand. Also organizes a directory into human-facing and machine-facing trees.",
-  "icon": "./assets/icon.svg",
+  "icon": "./assets/icon.png",
   "keywords": [
     "dsh",
     "dsh-plugin",
@@ -26,7 +26,7 @@
   "files": [
     "lib",
     "scripts",
-    "assets/icon.svg",
+    "assets/icon.png",
     "locale/*.json",
     "cordis.patch.yml",
     "README.md",
