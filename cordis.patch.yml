@@ -1,0 +1,13 @@
+# ============================================================================
+# dsh-research-solver —— DSH bundle patch
+# ============================================================================
+# 把科研式解题器插入 profile 的配置树。纯 Host 插件，没有 Client/UI 部分，
+# 因此这里只有一条 insert，不带 client.inject。
+#
+# 安装方式（推荐）：
+#   plugin_manager action=install_bundle target=E:\Plugs\dsh-research-solver
+# ============================================================================
+
+- insert:
+    - id: dsh-research-solver
+      name: dsh-research-solver

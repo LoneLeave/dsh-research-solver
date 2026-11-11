@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Research Solver",
+    "description": "Research-style problem solving: build the innovation on what others do badly, prefer local sources before the web, and advance through four stages (collect → score → fuse → iterate). Every conclusion is recomputed by a deterministic scoring engine. It also governs the workspace: files split into a human tree (chat · process · deliverables · verifiable intermediates) and an ai tree."
+  }
+}

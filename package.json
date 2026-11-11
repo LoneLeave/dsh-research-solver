@@ -1,0 +1,75 @@
+{
+  "name": "dsh-research-solver",
+  "version": "0.2.0",
+  "description": "Research-style problem solving for DeepSeek Harness: treat what existing tools do badly as the innovation target, search locally before the web, then walk four stages (collect → metric-based evaluation → fuse/improve → iterate) backed by a deterministic scoring engine whose totals can be recomputed by hand. Also organizes a directory into human-facing and machine-facing trees.",
+  "icon": "./assets/icon.svg",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "research",
+    "reasoning",
+    "evaluation",
+    "decision",
+    "workflow",
+    "file-organization"
+  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./lib/*": "./lib/*",
+    "./locale/*.json": "./locale/*.json",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "scripts",
+    "assets/icon.svg",
+    "locale/*.json",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": "^22.19.0 || >=24.9.0",
+    "dsh": ">=0.2.0-0 <0.3.0 || >=0.2.1-rc.1 <0.3.0 || >=0.2.2-0 <0.3.0"
+  },
+  "scripts": {
+    "check": "node --check lib/index.js && node --check lib/engine.mjs && node --check lib/render.mjs && node --check lib/store.mjs && node --check lib/layout.mjs && node --check lib/skill.mjs",
+    "selftest": "node scripts/selftest.mjs"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.5-alpha.1",
+    "@deepseek-ai/dsh-skill": ">=0.2.0-0 <0.3.0 || >=0.2.1-rc.1 <0.3.0 || >=0.2.2-0 <0.3.0",
+    "@deepseek-ai/dsh-tools": ">=0.2.0-0 <0.3.0 || >=0.2.1-rc.1 <0.3.0 || >=0.2.2-0 <0.3.0"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-skill": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LoneLeave/dsh-research-solver.git"
+  },
+  "homepage": "https://github.com/LoneLeave/dsh-research-solver#readme",
+  "bugs": {
+    "url": "https://github.com/LoneLeave/dsh-research-solver/issues"
+  }
+}
