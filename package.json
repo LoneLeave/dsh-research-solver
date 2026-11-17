@@ -1,7 +1,7 @@
 {
   "name": "dsh-research-solver",
-  "version": "0.2.0",
-  "description": "Research-style problem solving for DeepSeek Harness: treat what existing tools do badly as the innovation target, search locally before the web, then walk four stages (collect → metric-based evaluation → fuse/improve → iterate) backed by a deterministic scoring engine whose totals can be recomputed by hand. Also organizes a directory into human-facing and machine-facing trees.",
+"version": "0.3.1",
+  "description": "Research-style problem solving for DeepSeek Harness: treat what existing tools do badly as the innovation target, search locally before the web, then walk four stages (collect → metric-based evaluation → fuse/improve → iterate) backed by a deterministic scoring engine whose totals can be recomputed by hand. Also organizes a directory into human-facing and machine-facing trees, and indexes the whole machine in two layers — what it can do (runtimes, toolchains, package libraries) and what is on it (code, docs, images, video, models).",
   "icon": "./assets/icon.png",
   "keywords": [
     "dsh",
@@ -12,7 +12,9 @@
     "evaluation",
     "decision",
     "workflow",
-    "file-organization"
+    "file-organization",
+    "system-index",
+    "knowledge-base"
   ],
   "type": "module",
   "main": "lib/index.js",
@@ -38,7 +40,7 @@
     "dsh": ">=0.2.0-0 <0.3.0 || >=0.2.1-rc.1 <0.3.0 || >=0.2.2-0 <0.3.0"
   },
   "scripts": {
-    "check": "node --check lib/index.js && node --check lib/engine.mjs && node --check lib/render.mjs && node --check lib/store.mjs && node --check lib/layout.mjs && node --check lib/skill.mjs",
+    "check": "node --check lib/index.js && node --check lib/engine.mjs && node --check lib/render.mjs && node --check lib/store.mjs && node --check lib/layout.mjs && node --check lib/skill.mjs && node --check lib/probe.mjs && node --check lib/indexer.mjs",
     "selftest": "node scripts/selftest.mjs"
   },
   "dsh": {

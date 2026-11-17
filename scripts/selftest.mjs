@@ -16,8 +16,28 @@ import os from 'node:os';
 import path from 'node:path';
 import { emptyState, analyze, snapshot, computeStage, effectiveWeights, metricNorm } from '../lib/engine.mjs';
 import { renderAll } from '../lib/render.mjs';
-import { saveProject, checkIntegrity, readState, projectDir, walkFiles, writeFiles, moveInto } from '../lib/store.mjs';
+import {
+  saveProject,
+  checkIntegrity,
+  readState,
+  projectDir,
+  walkFiles,
+  writeFiles,
+  moveInto,
+  walkDeep,
+  writeFileIndex,
+  readFileIndex,
+  systemStoreDir,
+} from '../lib/store.mjs';
 import { FOLDER_IDS, classifyPath, auditFiles, seedFiles, mapFiles } from '../lib/layout.mjs';
+import {
+  classifyPath as classifyFile,
+  normalizeFilters,
+  matchEntry,
+  skipReason,
+  mergeDirs,
+} from '../lib/indexer.mjs';
+import { extractVersion, parseJsonLoose, normalizeProbe, summarize } from '../lib/probe.mjs';
 
 const tmp = path.join(os.tmpdir(), 'dsh-research-solver-selftest');
 const ws = path.join(tmp, 'ws');
@@ -316,6 +336,139 @@ await acheck('复检：目录说明不算放错，直接躺在 human/ 下的散�
   assert.equal(a.counts['human/流程展示'] >= 0, true);
   // .md 说不准是流程还是成品，按「不替人猜」的规矩只提示、不搬。
   assert.equal(stray.verdict, 'review');
+});
+
+/* ------------------------------------------------- 索引层（能力 + 内容） */
+
+check('扩展名归类覆盖四类常用资源', () => {
+  assert.equal(classifyFile('a/b/report.pdf').kind, 'pdf');
+  assert.equal(classifyFile('a/photo.PNG').kind, 'image');
+  assert.equal(classifyFile('a/clip.mp4').kind, 'video');
+  assert.equal(classifyFile('a/notes.md').kind, 'text');
+  assert.equal(classifyFile('a/main.py').kind, 'code');
+  assert.equal(classifyFile('a/data.csv').kind, 'data');
+});
+
+check('无扩展名的常见文件不再掉进 other', () => {
+  // 整机索引里 other 是最大的一桶，这一条是为了让它变小
+  assert.equal(classifyFile('proj/README').kind, 'text');
+  assert.equal(classifyFile('proj/LICENSE').kind, 'text');
+  assert.equal(classifyFile('proj/Dockerfile').kind, 'code');
+  assert.equal(classifyFile('proj/.gitignore').kind, 'text');
+  assert.equal(classifyFile('proj/weird.xyz').kind, 'other');
+});
+
+check('中文类型别名能当过滤条件用', () => {
+  const { kinds } = normalizeFilters({ kind: '图片,视频' });
+  assert.ok(kinds.has('image'));
+  assert.ok(kinds.has('video'));
+  const { exts } = normalizeFilters({ ext: '.PDF,png' });
+  assert.ok(exts.has('pdf') && exts.has('png'));
+});
+
+check('检索按多词 AND 匹配完整路径', () => {
+  const opts = (q) => ({ q, kinds: new Set(), exts: new Set(), since: 0, minBytes: 0 });
+  const hit = { p: 'E:/work/alpha/beta.py', s: 10, m: 0, e: 'py', k: 'code' };
+  const miss = { p: 'E:/work/alpha/gamma.py', s: 10, m: 0, e: 'py', k: 'code' };
+  assert.equal(matchEntry(hit, opts('alpha beta')), true);
+  assert.equal(matchEntry(miss, opts('alpha beta')), false);
+  assert.equal(matchEntry(hit, opts('ALPHA')), true);
+});
+
+check('依赖目录默认不扫，但要能看见被跳过', () => {
+  assert.equal(skipReason('node_modules', { includeDeps: false }), 'dependency');
+  assert.equal(skipReason('site-packages', { includeDeps: false }), 'dependency');
+  assert.equal(skipReason('node_modules', { includeDeps: true }), null);
+  assert.equal(skipReason('src', { includeDeps: false }), null);
+});
+
+check('版本号提取能吃下 v 前缀与单段版本', () => {
+  // 不削 v 前缀时，\b 会从「24.11.1」内部切出「11.1」——这是实测踩到的坑
+  assert.equal(extractVersion('v24.11.1'), '24.11.1');
+  assert.equal(extractVersion('javac 17'), '17');
+  assert.equal(extractVersion('java version "17" 2021-09-14 LTS'), '17');
+  assert.equal(extractVersion('git version 2.56.0.windows.4'), '2.56.0.windows.4');
+  assert.equal(extractVersion('Python 3.8.8'), '3.8.8');
+  assert.equal(extractVersion(''), '');
+});
+
+check('JSON 前后夹着提示也能解析', () => {
+  // pip 会在 JSON 前面打升级提示，后面再补一行，整体 parse 会失败
+  const arr = parseJsonLoose('WARNING: upgrade pip\n[{"name":"numpy","version":"1.0"}]\nNOTE: done');
+  assert.equal(arr.length, 1);
+  assert.equal(arr[0].name, 'numpy');
+  const obj = parseJsonLoose('warn\n{"a":{"b":[1,2]}}\ntail');
+  assert.equal(obj.a.b.length, 2);
+  assert.throws(() => parseJsonLoose('no json here'));
+});
+
+check('探测失败不抛异常，只记原因', () => {
+  const probe = { id: 'x', label: 'X', kind: 'tool', parse: 'pip' };
+  const out = normalizeProbe(probe, { ok: false, why: '不在 PATH' });
+  assert.equal(out.ok, false);
+  assert.equal(out.why, '不在 PATH');
+  // 有输出但坏掉也不能抛
+  const bad = normalizeProbe(probe, { ok: true, stdout: '<<not json>>' });
+  assert.equal(bad.ok, false);
+  assert.ok(bad.why.includes('无法解析'));
+});
+
+check('能力画像能容忍缺字段的空快照', () => {
+  const s = summarize({ items: [] });
+  assert.deepEqual(s.runtimes, []);
+  assert.equal(s.totalPackages, 0);
+  assert.deepEqual(summarize(undefined).packages, []);
+});
+
+await acheck('增量扫描靠目录 mtime 复用整棵子树', async () => {
+  const root = path.join(dir, 'deep');
+  await fs.mkdir(path.join(root, 'sub'), { recursive: true });
+  await fs.writeFile(path.join(root, 'a.txt'), 'a\n', 'utf8');
+  await fs.writeFile(path.join(root, 'sub/b.txt'), 'b\n', 'utf8');
+  const first = await walkDeep(root, { maxDepth: 8 });
+  assert.equal(first.entries.length, 2);
+  // 复用必须走真实落盘链路：subtree 只有从磁盘读回时才重建得出来
+  const store = systemStoreDir(path.join(dir, 'deep-store'));
+  await writeFileIndex(store, {
+    entries: first.entries,
+    manifest: { version: 1, roots: [root], scannedAt: now, files: 2, truncated: false },
+    dirs: first.dirs,
+  });
+  const { manifest } = await readFileIndex(store);
+  const second = await walkDeep(root, { maxDepth: 8, prev: manifest });
+  assert.equal(second.entries.length, 2, '复用的是整棵子树，一条都不能少');
+  assert.ok(second.reusedDirs >= 1, '目录未变时应复用，而不是重走一遍');
+  // 子树不能只算直属文件：sub/b.txt 必须跟着 sub 一起被搬回来
+  assert.equal(manifest.subtree(path.join(root, 'sub').replace(/\\/g, '/')).length, 1);
+});
+
+await acheck('索引写盘后读回一致，且二次读走缓存', async () => {
+  const store = systemStoreDir(dir);
+  const entries = [{ p: 'E:/x/a.png', s: 10, m: 1, e: 'png', k: 'image' }];
+  const manifest = { version: 1, roots: ['E:\\'], scannedAt: now, files: 1, truncated: false };
+  await writeFileIndex(store, { entries, manifest, dirs: { 'E:/x': 1 } });
+  const back = await readFileIndex(store);
+  assert.equal(back.entries.length, 1);
+  assert.equal(back.entries[0].p, 'E:/x/a.png');
+  assert.equal(back.manifest.roots[0], 'E:\\');
+  const again = await readFileIndex(store);
+  // 同一个对象引用说明没重读磁盘——百万条索引每次都重读会慢到不可用
+  assert.equal(again, back);
+});
+
+await acheck('目录 mtime 表只增不减：复用过的子树不能被当成已删除', async () => {
+  const prev = { 'E:/a': 1, 'E:/a/b': 2, 'C:/x': 3 };
+  // 本轮只实际走了 E:/a 一层，E:/a/b 是靠整棵子树复用跳过的——它必须留在表里
+  const next = { 'E:/a': 1 };
+  const merged = mergeDirs(prev, next, { roots: ['E:\\'] });
+  assert.equal(Object.keys(merged).length, 3);
+  assert.equal(merged['E:/a/b'], 2);
+  // force 且完整走完：范围内可以按新结果重建，范围外照旧保留
+  const rebuilt = mergeDirs(prev, next, { roots: ['E:\\'], force: true });
+  assert.deepEqual(Object.keys(rebuilt).sort(), ['C:/x', 'E:/a']);
+  // force 但被截断：这一轮没走完，旧值不能丢
+  const cut = mergeDirs(prev, next, { roots: ['E:\\'], force: true, truncated: true });
+  assert.equal(Object.keys(cut).length, 3);
 });
 
 console.log(`\n全部通过：${passed} 项`);

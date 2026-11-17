@@ -20,7 +20,7 @@ It is not a longer prompt. A prompt disappears with the session, its conclusions
 
 The stage is **derived from the artifacts**, not declared: sources make it 1; metrics plus scores make it 2; a fused candidate makes it 3; two completed rounds make it 4. Skip a step and `research_task action=status` says so.
 
-## Three tools
+## Four tools
 
 ### `research_task` — move the process forward
 
@@ -55,6 +55,29 @@ The requested layout was "files for people and files for AI, with people's side 
 | `map` | rebuild `human/README.md` (human map) and `ai/index.json` (machine index) |
 
 Classification uses two clues in a fixed order — **name first, extension second** — and refuses to guess: an ambiguous file is reported as `?` with the reason, never moved. Moving a file to the wrong folder costs more than asking the user once.
+
+### `system_index` — look at this machine before looking at the web
+
+The most common waste in problem solving is not knowing what you already have: which runtimes are installed, at what versions, which libraries, and which local files might matter. So the first move is not a web search but a two-layer index of the machine.
+
+| Layer | What is indexed | How |
+| --- | --- | --- |
+| **Capability** | what it can do: node / python / java / conda, toolchain versions, GPU | ask the package managers themselves (`pip list --format=json`, `npm ls -g --json`, `conda env list --json`, …) — seconds, structured |
+| **Content** | what is on it: code, text, PDF, images, video, audio, data, models, archives | incremental directory walk, classified by extension; a directory whose mtime is unchanged reuses last round's subtree |
+
+| action | effect |
+| --- | --- |
+| `probe` | probe the capability layer (`level: fast` = versions only, `full` = include package lists) |
+| `scan` | build/update the content index; scan one drive at a time — scanning the next drive keeps the previous one |
+| `update` | probe then scan, the everyday call |
+| `find` | search both layers at once: `query` matches paths and package names, plus `kind`/`ext`/`since`/`minBytes` |
+| `stats` | index size, kind distribution, which probes failed |
+
+Measured on this machine (four drives): capability layer 1.7 s for 15 of 27 probes (343 pip packages, 5 conda envs, GPU model); content layer 1.66 M files / 854 GB in 147 s to build, and **0 s with 0 deletions on a re-scan when directories have not changed**.
+
+Why not an Everything/Recoll-style path-only index: what an AI needs is not "which file has this name" but "what can this machine do and what does it have". A path index cannot answer the former, and only the package managers know the latter.
+
+Dependency directories (`node_modules`, `site-packages`, `.m2`, …) are skipped by default — the capability layer already answers their versions precisely, and walking them would only bloat the index. Skips are always counted and reported, so the result never pretends a scan was complete.
 
 ### Scoring is deterministic
 
